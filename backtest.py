@@ -5,6 +5,7 @@ from strategy import ema_strategy
 from models import Trade
 from config import STOP_LOSS_PIPS, TAKE_PROFIT_PIPS
 from performance import Performance
+from chart import Chart
 
 
 class Backtester:
@@ -193,13 +194,22 @@ class Backtester:
         )
 
 
-        # Equity
+        # Performance
 
         performance = Performance(1000)
 
         equity = performance.calculate_equity(trades)
 
         max_drawdown = performance.calculate_drawdown(equity)
+
+
+        # Chart
+
+        if equity:
+
+            chart = Chart()
+
+            chart.plot_equity(equity)
 
 
 
