@@ -1,0 +1,102 @@
+import pandas as pd
+
+from indicators import calculate_ema
+from strategy import ema_strategy
+from models import Trade
+from config import STOP_LOSS_PIPS, TAKE_PROFIT_PIPS
+
+
+class Backtester:
+
+    def check_buy_exit(self, trade, future_candles):
+
+        for _, candle in future_candles.iterrows():
+
+            if candle["low"] <= trade.stop_loss:
+                return "LOSS"
+
+            if candle["high"] >= trade.take_profit:
+                return "WIN"
+
+        return "OPEN"
+
+    def check_sell_exit(self, trade, future_candles):
+
+        for _, candle in future_candles.iterrows():
+
+            if candle["high"] >= trade.stop_loss:
+                return "LOSS"
+
+            if candle["low"] <= trade.take_profit:
+                return "WIN"
+
+        return "OPEN"
+
+    def run(self, filename):
+
+        df = pd.read_csv(filename)
+        df["time"] = pd.to_datetime(df["time"])
+
+        df = calculate_ema(df)
+
+        trades = []
+
+        pip = 0.0001
+
+        for i in range(50, len(df)):
+
+            signal = ema_strategy(df.iloc[: i + 1])
+
+            price = df.iloc[i]["close"]
+
+            if signal == "BUY":
+
+                trade = Trade(
+                    direction="BUY",
+                    entry_time=df.iloc[i]["time"],
+                    entry_price=price,
+                    stop_loss=price - (STOP_LOSS_PIPS * pip),
+                    take_profit=price + (TAKE_PROFIT_PIPS * pip)
+                )
+
+                future = df.iloc[i + 1:]
+
+                trade.status = self.check_buy_exit(trade, future)
+
+                trades.append(trade)
+
+            elif signal == "SELL":
+
+                trade = Trade(
+                    direction="SELL",
+                    entry_time=df.iloc[i]["time"],
+                    entry_price=price,
+                    stop_loss=price + (STOP_LOSS_PIPS * pip),
+                    take_profit=price - (TAKE_PROFIT_PIPS * pip)
+                )
+
+                future = df.iloc[i + 1:]
+
+                trade.status = self.check_sell_exit(trade, future)
+
+                trades.append(trade)
+
+        wins = sum(1 for t in trades if t.status == "WIN")
+        losses = sum(1 for t in trades if t.status == "LOSS")
+        open_trades = sum(1 for t in trades if t.status == "OPEN")
+
+        total = len(trades)
+
+        if total > 0:
+            win_rate = (wins / total) * 100
+        else:
+            win_rate = 0
+
+        print("\n========== BACKTEST REPORT ==========")
+        print(f"Total Trades : {total}")
+        print(f"Wins         : {wins}")
+        print(f"Losses       : {losses}")
+        print(f"Open         : {open_trades}")
+        print()
+        print(f"Win Rate     : {win_rate:.2f}%")
+        print("====================================")
