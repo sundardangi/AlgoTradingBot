@@ -4,6 +4,7 @@ from indicators import calculate_ema
 from strategy import ema_strategy
 from models import Trade
 from config import STOP_LOSS_PIPS, TAKE_PROFIT_PIPS
+from performance import Performance
 
 
 class Backtester:
@@ -42,6 +43,7 @@ class Backtester:
 
         df = calculate_ema(df)
 
+
         trades = []
 
         pip = 0.0001
@@ -64,9 +66,13 @@ class Backtester:
                     take_profit=price + (TAKE_PROFIT_PIPS * pip)
                 )
 
+
                 future = df.iloc[i + 1:]
 
-                trade.status = self.check_buy_exit(trade, future)
+                trade.status = self.check_buy_exit(
+                    trade,
+                    future
+                )
 
 
                 if trade.status == "WIN":
@@ -77,6 +83,7 @@ class Backtester:
 
 
                 trades.append(trade)
+
 
 
             elif signal == "SELL":
@@ -89,9 +96,14 @@ class Backtester:
                     take_profit=price - (TAKE_PROFIT_PIPS * pip)
                 )
 
+
                 future = df.iloc[i + 1:]
 
-                trade.status = self.check_sell_exit(trade, future)
+
+                trade.status = self.check_sell_exit(
+                    trade,
+                    future
+                )
 
 
                 if trade.status == "WIN":
@@ -105,11 +117,24 @@ class Backtester:
 
 
 
-        wins = sum(1 for t in trades if t.status == "WIN")
+        # Statistics
 
-        losses = sum(1 for t in trades if t.status == "LOSS")
+        wins = sum(
+            1 for t in trades
+            if t.status == "WIN"
+        )
 
-        open_trades = sum(1 for t in trades if t.status == "OPEN")
+
+        losses = sum(
+            1 for t in trades
+            if t.status == "LOSS"
+        )
+
+
+        open_trades = sum(
+            1 for t in trades
+            if t.status == "OPEN"
+        )
 
 
         total = len(trades)
@@ -122,7 +147,10 @@ class Backtester:
         )
 
 
-        total_pips = sum(t.profit_pips for t in trades)
+        total_pips = sum(
+            t.profit_pips
+            for t in trades
+        )
 
 
         winning_pips = [
@@ -165,6 +193,18 @@ class Backtester:
         )
 
 
+        # Equity
+
+        performance = Performance(1000)
+
+        equity = performance.calculate_equity(trades)
+
+        max_drawdown = performance.calculate_drawdown(equity)
+
+
+
+        # Report
+
         print("\n========== BACKTEST REPORT ==========")
 
         print(f"Total Trades  : {total}")
@@ -175,9 +215,20 @@ class Backtester:
         print()
 
         print(f"Win Rate      : {win_rate:.2f}%")
+
         print(f"Total Pips    : {total_pips}")
         print(f"Avg Win       : {avg_win:.2f}")
         print(f"Avg Loss      : {avg_loss:.2f}")
+
         print(f"Profit Factor : {profit_factor:.2f}")
+
+        print()
+
+        print("Starting Balance : $1000")
+
+        if equity:
+            print(f"Ending Balance   : ${equity[-1]:.2f}")
+
+        print(f"Max Drawdown     : ${max_drawdown:.2f}")
 
         print("====================================")
